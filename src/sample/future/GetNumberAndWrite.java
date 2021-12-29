@@ -2,6 +2,7 @@ package sample.future;
 
 import java.io.IOException;
 import java.time.LocalTime;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 public class GetNumberAndWrite implements Runnable {
@@ -11,18 +12,45 @@ public class GetNumberAndWrite implements Runnable {
 
     public GetNumberAndWrite(NumberGenerator numberGenerator, NumberWriter numberWriter) {
         this.numberGenerator = numberGenerator;
-
         this.numberWriter = numberWriter;
     }
 
     @Override
     public void run() {
-        long threadId = Thread.currentThread().getId();
-        System.out.println(threadId + " : staring at " + LocalTime.now().getSecond());
+        long threadId = LocalTime.now().getSecond();
+        System.out.println(threadId + " started");
+
+//        runStraight();
+        runWithCompletableFuture();
+
+        System.out.println(threadId + " finishing");
+    }
+
+    private void runWithCompletableFuture() {
+        CompletableFuture
+                .supplyAsync(() -> generateWrapped())
+                .thenAccept(number -> writeWrapped(number));
+    }
+
+    private int generateWrapped() {
         try {
-            System.out.println(threadId + " : generating number");
+            return numberGenerator.generate();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void writeWrapped(int number) {
+        try {
+            numberWriter.writeNumber(number);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void runStraight() {
+        try {
             int number = numberGenerator.generate();
-            System.out.println(threadId + " : writing number " + number + " at " + LocalTime.now().getSecond());
             numberWriter.writeNumber(number);
         } catch (InterruptedException | IOException e) {
             e.printStackTrace();
